@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bonne Pioche — Générateur d'annonces Vinted & Leboncoin</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d28;
+    --card-light: #232735;
+    --accent: #6c5ce7;
+    --accent-hover: #5b4dd9;
+    --accent-light: #a29bfe;
+    --text: #e8e8e8;
+    --text-dim: #8e8e9a;
+    --border: #2d3142;
+    --success: #00b894;
+    --error: #e74c3c;
+    --warning: #fdcb6e;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 30px 20px 20px;
+  }
+  header h1 {
+    font-size: 2.2em;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-light), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p {
+    color: var(--text-dim);
+    margin-top: 8px;
+    font-size: 1.05em;
+  }
+
+  /* Counter badge */
+  .counter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    margin-top: 12px;
+  }
+  .counter-badge .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+  .counter-badge.low .dot { background: var(--warning); }
+  .counter-badge.empty .dot { background: var(--error); }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-top: 24px;
+  }
+
+  /* Form */
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 0.9em;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .form-group .hint {
+    font-size: 0.78em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  select, input[type="text"], textarea {
+    width: 100%;
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 0.95em;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+  select option { background: var(--card-light); }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+  }
+  .form-row .form-group {
+    flex: 1;
+  }
+
+  /* Button */
+  .btn-generate {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 1.05em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-generate:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.35);
+  }
+  .btn-generate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Results */
+  .results {
+    margin-top: 28px;
+    display: none;
+  }
+  .results.visible { display: block; }
+
+  .result-block {
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .result-block h3 {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent-light);
+    margin-bottom: 10px;
+  }
+  .result-block .content {
+    font-size: 0.95em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .result-block .content.titre {
+    font-weight: 700;
+    font-size: 1.1em;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.78em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .copy-btn.copied {
+    color: var(--success);
+    border-color: var(--success);
+  }
+
+  /* Error */
+  .error-msg {
+    display: none;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid var(--error);
+    color: var(--error);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 20px;
+    font-size: 0.9em;
+  }
+  .error-msg.visible { display: block; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-dim);
+    font-size: 0.82em;
+  }
+  footer a {
+    color: var(--accent-light);
+    text-decoration: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .form-row { flex-direction: column; gap: 0; }
+    header h1 { font-size: 1.7em; }
+    .card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🎯 Bonne Pioche</h1>
+    <p>Génère des annonces qui se vendent, en 5 secondes.</p>
+    <div class="counter-badge" id="counterBadge">
+      <span class="dot"></span>
+      <span id="counterText">3 annonces restantes (gratuit)</span>
+    </div>
+  </header>
+
+  <div class="card">
+    <!-- Form -->
+    <div class="form-group">
+      <label for="plateforme">Plateforme</label>
+      <select id="plateforme">
+        <option value="Vinted">Vinted</option>
+        <option value="Leboncoin">Leboncoin</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description de l'article</label>
+      <div class="hint">Décris en quelques mots : marque, type, taille, couleur, matière, défauts…</div>
+      <textarea id="description" placeholder="Ex : Nike Air Force 1 blanche taille 42, portées mais en bon état, semelle un peu usée"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="etat">État</label>
+        <select id="etat">
+          <option value="Neuf avec étiquette">Neuf avec étiquette</option>
+          <option value="Neuf sans étiquette">Neuf sans étiquette</option>
+          <option value="Très bon état" selected>Très bon état</option>
+          <option value="Bon état">Bon état</option>
+          <option value="Satisfaisant">Satisfaisant</option>
+          <option value="Pour pièces / non fonctionnel">Pour pièces / non fonctionnel</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="prix">Prix souhaité (facultatif)</label>
+        <input type="text" id="prix" placeholder="Ex : 45 €">
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generateBtn" onclick="generateAnnonce()">
+      ✨ Générer mon annonce
+    </button>
+
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="result-block">
+      <button class="copy-btn" onclick="copyText(this, 'titre')">Copier</button>
+      <h3>Titre</h3>
+      <div class="content titre" id="result-titre"></div>
+    </div>
+
+    <div class="result-block">
+      <button class="copy-btn" onclick="copyText(this, 'description-result')">Copier</button>
+      <h3>Description</h3>
+      <div class="content" id="result-description-result"></div>
+    </div>
+
+    <div class="result-block">
+      <button class="copy-btn" onclick="copyText(this, 'mots-cles')">Copier</button>
+      <h3>Mots-clés</h3>
+      <div class="content" id="result-mots-cles"></div>
+    </div>
+
+    <div class="result-block">
+      <button class="copy-btn" onclick="copyText(this, 'conseil-prix')">Copier</button>
+      <h3>Conseil de prix</h3>
+      <div class="content" id="result-conseil-prix"></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Bonne Pioche — par <a href="https://github.com/JulesDev914" target="_blank">JulesDev914</a> · Version bêta</p>
+  </footer>
+
+</div>
+
+<script>
+// ─── Config ───
+const API_URL = "http://localhost:8080/v1/chat/completions";
+const FREE_LIMIT = 3;
+const STORAGE_KEY = "bonne-pioche-counter";
+
+// ─── System prompt ───
+const SYSTEM_PROMPT = `Tu es un expert de la vente d'occasion sur Vinted et Leboncoin. Ta mission : transformer la description rapide d'un vendeur en une annonce qui se vend vite.
+
+Produis exactement ce format :
+
+TITRE
+Maximum 60 caractères. Mets en premier la marque, le type d'article, la taille ou le modèle, et la couleur. Pas de majuscules criardes ni d'emojis.
+
+DESCRIPTION
+- Une phrase d'accroche.
+- Une liste claire : marque, taille/dimensions, matière, couleur, état.
+- Les défauts éventuels, dits honnêtement (ça rassure l'acheteur).
+- Une phrase de fin : envoi rapide, remise possible pour un lot, etc.
+Ton : simple, chaleureux, direct. Pas de phrases exagérées.
+
+MOTS-CLÉS
+10 mots-clés ou hashtags que les acheteurs tapent vraiment pour trouver cet article.
+
+CONSEIL DE PRIX
+Une fourchette indicative, avec la mention que c'est une estimation.
+
+Règles :
+- N'invente jamais une marque, une taille, une matière ou un état que le vendeur n'a pas donné. S'il manque une info importante, ajoute à la fin une ligne « À préciser : … ».
+- Adapte le style : plus court et pratique sur Leboncoin (lieu, remise en main propre), plus orienté mode et état sur Vinted.
+- Écris en français.`;
+
+// ─── Counter management ───
+function getCounter() {
+  return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+}
+
+function updateCounterUI() {
+  const used = getCounter();
+  const remaining = FREE_LIMIT - used;
+  const badge = document.getElementById("counterBadge");
+  const text = document.getElementById("counterText");
+
+  if (remaining <= 0) {
+    badge.classList.add("empty");
+    text.textContent = "Limite gratuite atteinte — passe Pro pour continuer";
+  } else if (remaining === 1) {
+    badge.classList.add("low");
+    text.textContent = "1 annonce restante (gratuit)";
+  } else {
+    text.textContent = remaining + " annonces restantes (gratuit)";
+  }
+}
+
+// ─── Generate ───
+async function generateAnnonce() {
+  const plateforme = document.getElementById("plateforme").value;
+  const description = document.getElementById("description").value.trim();
+  const etat = document.getElementById("etat").value;
+  const prix = document.getElementById("prix").value.trim();
+
+  // Validation
+  if (!description) {
+    showError("Décris ton article avant de générer l'annonce 😊");
+    return;
+  }
+
+  // Counter check
+  const used = getCounter();
+  if (used >= FREE_LIMIT) {
+    showError("Tu as utilisé tes " + FREE_LIMIT + " annonces gratuites. Passe à la version Pro pour continuer !");
+    return;
+  }
+
+  // Build user message
+  let userMsg = "Plateforme : " + plateforme + "\n";
+  userMsg += "Description de l'article : " + description + "\n";
+  userMsg += "État : " + etat;
+  if (prix) {
+    userMsg += "\nPrix souhaité : " + prix;
+  }
+
+  // UI loading state
+  const btn = document.getElementById("generateBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Génération en cours...';
+  hideError();
+  document.getElementById("results").classList.remove("visible");
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "qwen/qwen3-4b-2507",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMsg }
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Le serveur local ne répond pas. Vérifie que LM Studio est lancé et que le serveur est démarré (onglet 'Local Server').");
+    }
+
+    const data = await response.json();
+    const rawText = data.choices[0].message.content;
+
+    // Parse and display
+    parseAndDisplay(rawText);
+
+    // Increment counter
+    localStorage.setItem(STORAGE_KEY, (used + 1).toString());
+    updateCounterUI();
+
+  } catch (err) {
+    if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+      showError("Impossible de contacter LM Studio. Vérifie que le serveur local est démarré dans LM Studio (onglet 'Local Server' → Start).");
+    } else {
+      showError(err.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "✨ Générer mon annonce";
+  }
+}
+
+// ─── Parse AI response ───
+function parseAndDisplay(text) {
+  // The AI returns sections: TITRE, DESCRIPTION, MOTS-CLÉS, CONSEIL DE PRIX
+  // We parse them by looking for these headers
+  const sections = { titre: "", "description-result": "", "mots-cles": "", "conseil-prix": "" };
+
+  // Normalize: split by known headers
+  const titleMatch = text.match(/TITRE\s*\n([\s\S]*?)(?=DESCRIPTION|$)/i);
+  const descMatch = text.match(/DESCRIPTION\s*\n([\s\S]*?)(?=MOTS-CLÉS|MOTS[-\s]CLÉS|$)/i);
+  const keywordsMatch = text.match(/MOTS-CL[ÉE]S\s*\n([\s\S]*?)(?=CONSEIL|CONSEIL DE PRIX|$)/i);
+  const priceMatch = text.match(/CONSEIL DE PRIX\s*\n([\s\S]*?)$/i);
+
+  sections.titre = titleMatch ? titleMatch[1].trim() : "";
+  sections["description-result"] = descMatch ? descMatch[1].trim() : "";
+  sections["mots-cles"] = keywordsMatch ? keywordsMatch[1].trim() : "";
+  sections["conseil-prix"] = priceMatch ? priceMatch[1].trim() : "";
+
+  // If parsing failed, show raw text in description
+  if (!sections.titre && !sections["description-result"]) {
+    sections["description-result"] = text;
+  }
+
+  // Display
+  document.getElementById("result-titre").textContent = sections.titre;
+  document.getElementById("result-description-result").textContent = sections["description-result"];
+  document.getElementById("result-mots-cles").textContent = sections["mots-cles"];
+  document.getElementById("result-conseil-prix").textContent = sections["conseil-prix"];
+
+  document.getElementById("results").classList.add("visible");
+}
+
+// ─── Copy ───
+function copyText(btn, elementId) {
+  const text = document.getElementById("result-" + elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = "Copié ✓";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "Copier";
+      btn.classList.remove("copied");
+    }, 2000);
+  });
+}
+
+// ─── Error helpers ───
+function showError(msg) {
+  const el = document.getElementById("errorMsg");
+  el.textContent = msg;
+  el.classList.add("visible");
+}
+function hideError() {
+  document.getElementById("errorMsg").classList.remove("visible");
+}
+
+// ─── Init ───
+updateCounterUI();
+</script>
+</body>
+</html>
